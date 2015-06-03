@@ -210,8 +210,6 @@ root.decision.update({"max_epochs": 1})
 
 
 def main():
-    first = True
-
     def nothing():
         pass
 
@@ -236,15 +234,19 @@ def main():
                          device_class, dtype)
             root.common.precision_type = dtype
             root.common.precision_level = 0
+            try:
+                device = device_class()
+            except Exception as e:
+                logging.error("Could not create %s: %s", device_class, e)
+                break
             launcher = DummyLauncher()
             wf = BenchmarkWorkflow(launcher,
                                    loader_name="imagenet_loader",
                                    decision_config=root.decision,
                                    layers=root.alexnet.layers,
                                    loss_function="softmax")
-            device = device_class()
             wf.initialize(device, snapshot=False)
-            if first:
+            if device_class is CUDADevice:
                 wf.generate_graph("alexnet.svg")
             wf.run()
             logging.info("Forward pass: %.2f msec",
@@ -256,7 +258,6 @@ def main():
 
             logging.info("\n%s: benchmark ended for dtype %s\n",
                          device_class, dtype)
-            first = False
 
             # Full garbage collection
             del wf
